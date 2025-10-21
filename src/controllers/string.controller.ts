@@ -3,6 +3,7 @@ import catchAsync from "../utils/catch-async";
 import crypto from "crypto";
 import { StringModel } from "../models/string.model";
 import AppError from "../utils/app-error";
+import { parseNaturalQuery } from "../utils/nlpParser";
 
 export const createString = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -44,6 +45,81 @@ export const createString = catchAsync(
       data: {
         string: string.getPublicFields(),
       },
+    });
+  }
+);
+
+export const getString = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { string_value } = req.params;
+
+    if (string_value === "filter-by-natural-language") {
+      return next();
+    }
+
+    const string = await StringModel.findOne({ value: string_value });
+    if (!string) {
+      return next(new AppError("String not found", 404));
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        string: string.getPublicFields(),
+      },
+    });
+  }
+);
+
+export const getStringByQuery = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const filters: any = {};
+    if (req.query.is_palindrome)
+      filters["properties.is_palindrome"] = req.query.is_palindrome === "true";
+    if (req.query.min_length)
+      filters["properties.length"] = { $gte: +req.query.min_length };
+    if (req.query.max_length)
+      filters["properties.length"] = {
+        ...filters["properties.length"],
+        $lte: +req.query.max_length,
+      };
+    if (req.query.word_count)
+      filters["properties.word_count"] = +req.query.word_count;
+    if (req.query.contains_character)
+      filters.value = { $regex: req.query.contains_character, $options: "i" };
+
+    if (Object.keys(filters).length === 0) {
+      return next(
+        new AppError("At least one query parameter must be provided", 400)
+      );
+    }
+
+    const results = await StringModel.find(filters);
+
+    res.status(200).json({
+      data: results,
+      count: results.length,
+      filters_applied: req.query,
+    });
+  }
+);
+
+export const filterByNaturalLanguage = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { query } = req.query;
+    if (typeof query !== "string" || query.trim() === "") {
+      return next(
+        new AppError("A valid 'query' parameter must be provided", 400)
+      );
+    }
+
+    const filters = parseNaturalQuery(query as string);
+    const results = await StringModel.find(filters);
+
+    res.status(200).json({
+      data: results,
+      count: results.length,
+      interpreted_query: { original: query, parsed_filters: filters },
     });
   }
 );
