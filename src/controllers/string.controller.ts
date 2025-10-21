@@ -107,6 +107,7 @@ export const getStringByQuery = catchAsync(
 export const filterByNaturalLanguage = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { query } = req.query;
+
     if (typeof query !== "string" || query.trim() === "") {
       return next(
         new AppError("A valid 'query' parameter must be provided", 400)
@@ -120,6 +121,23 @@ export const filterByNaturalLanguage = catchAsync(
       data: results,
       count: results.length,
       interpreted_query: { original: query, parsed_filters: filters },
+    });
+  }
+);
+
+export const deleteString = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { string_value } = req.params;
+
+    const string = await StringModel.findOneAndDelete({ value: string_value });
+
+    if (!string) {
+      return next(new AppError("String not found", 404));
+    }
+
+    res.status(204).json({
+      status: "success",
+      data: null,
     });
   }
 );

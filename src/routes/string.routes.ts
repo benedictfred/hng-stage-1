@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createString,
+  deleteString,
   filterByNaturalLanguage,
   getString,
   getStringByQuery,
@@ -9,7 +10,7 @@ import {
 const router = Router();
 
 router.route("/").post(createString).get(getStringByQuery);
-router.get("/:string_value", getString);
+router.route("/:string_value").get(getString).delete(deleteString);
 router.get("/filter-by-natural-language", filterByNaturalLanguage);
 
 export default router;
